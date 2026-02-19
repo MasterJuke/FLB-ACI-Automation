@@ -45,9 +45,13 @@ CONFIG_FILE = "aci_deploy_config.json"
 DEFAULT_CONFIG = {
     "vpc_script": "aci_bulk_vpc_deploy.py",
     "individual_script": "aci_bulk_individual_deploy.py",
+    "epgadd_script": "aci_bulk_epg_add.py",
+    "epgdelete_script": "aci_bulk_epg_delete.py",
     "default_vpc_csv": "vpc_deployments.csv",
     "default_individual_csv": "individual_port_deployments.csv",
-    "version": "1.0.0"
+    "default_epgadd_csv": "epg_add.csv",
+    "default_epgdelete_csv": "epg_delete.csv",
+    "version": "1.1.0"
 }
 
 # Global state for running processes
@@ -285,6 +289,8 @@ HTML_TEMPLATE = '''
         .nav-item.individual .nav-icon { background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow)); }
         .nav-item.settings .nav-icon { background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green)); }
         .nav-item.readme .nav-icon { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .nav-item.epgadd .nav-icon { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .nav-item.epgdelete .nav-icon { background: linear-gradient(135deg, #eb3349, #f45c43); }
 
         .nav-item-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
         .nav-item-desc { font-size: 11px; color: var(--text-muted); }
@@ -360,6 +366,8 @@ HTML_TEMPLATE = '''
         .header-badge.individual { background: rgba(240, 136, 62, 0.2); color: var(--accent-orange); }
         .header-badge.settings { background: rgba(57, 212, 212, 0.2); color: var(--accent-cyan); }
         .header-badge.readme { background: rgba(245, 87, 108, 0.2); color: #f5576c; }
+        .header-badge.epgadd { background: rgba(56, 239, 125, 0.2); color: #38ef7d; }
+        .header-badge.epgdelete { background: rgba(244, 92, 67, 0.2); color: #f45c43; }
 
         .header-actions { display: flex; gap: 8px; }
 
@@ -836,6 +844,140 @@ HTML_TEMPLATE = '''
             display: block;
         }
 
+        /* Inline CSV Editor */
+        .csv-editor-section {
+            padding: 16px 20px;
+            background: var(--bg-darkest);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .csv-editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .csv-editor-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .csv-editor-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .csv-editor-btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .csv-editor-btn:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .csv-editor-btn.add {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .csv-editor-btn.add:hover {
+            background: rgba(63, 185, 80, 0.1);
+        }
+
+        .csv-editor-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .csv-editor-table th {
+            background: var(--bg-input);
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+        }
+
+        .csv-editor-table td {
+            padding: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .csv-editor-table input {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-terminal);
+            border: 1px solid transparent;
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .csv-editor-table input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .csv-editor-table .row-actions {
+            width: 40px;
+            text-align: center;
+        }
+
+        .csv-editor-table .delete-row {
+            background: transparent;
+            border: none;
+            color: var(--accent-red);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .csv-editor-table .delete-row:hover {
+            background: rgba(248, 81, 73, 0.1);
+        }
+
+        .csv-toggle-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .csv-toggle {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .csv-toggle.active {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(57, 212, 212, 0.1);
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
@@ -854,7 +996,7 @@ HTML_TEMPLATE = '''
             </div>
 
             <nav class="nav-section">
-                <div class="nav-label">Deployment Types</div>
+                <div class="nav-label">Bulk Deployments</div>
                 
                 <div class="nav-item vpc" onclick="selectView('vpc')">
                     <div class="nav-icon">⚡</div>
@@ -869,6 +1011,24 @@ HTML_TEMPLATE = '''
                     <div class="nav-item-text">
                         <div class="nav-item-title">Port Bulk</div>
                         <div class="nav-item-desc">Individual port deployments</div>
+                    </div>
+                </div>
+
+                <div class="nav-label">EPG Management</div>
+
+                <div class="nav-item epgadd" onclick="selectView('epgadd')">
+                    <div class="nav-icon">➕</div>
+                    <div class="nav-item-text">
+                        <div class="nav-item-title">EPG Add</div>
+                        <div class="nav-item-desc">Add EPGs to existing ports</div>
+                    </div>
+                </div>
+
+                <div class="nav-item epgdelete" onclick="selectView('epgdelete')">
+                    <div class="nav-icon">➖</div>
+                    <div class="nav-item-text">
+                        <div class="nav-item-title">EPG Delete</div>
+                        <div class="nav-item-desc">Remove EPGs from ports</div>
                     </div>
                 </div>
 
@@ -938,10 +1098,49 @@ HTML_TEMPLATE = '''
                 </div>
 
                 <div class="config-panel">
-                    <div class="config-row">
+                    <div class="csv-toggle-group">
+                        <button class="csv-toggle active" onclick="toggleCsvMode('vpc', 'file')">📁 Use CSV File</button>
+                        <button class="csv-toggle" onclick="toggleCsvMode('vpc', 'inline')">✏️ Edit Inline</button>
+                    </div>
+                    <div id="vpcFileMode" class="config-row">
                         <div class="config-group">
                             <label class="config-label">CSV File Path</label>
                             <input type="text" class="config-input" id="vpcCsvPath" value="{{ config.default_vpc_csv }}">
+                        </div>
+                    </div>
+                    <div id="vpcInlineMode" style="display: none;">
+                        <div class="csv-editor-section" style="padding: 0;">
+                            <div class="csv-editor-header">
+                                <span class="csv-editor-title">Inline CSV Editor</span>
+                                <div class="csv-editor-actions">
+                                    <button class="csv-editor-btn add" onclick="addCsvRow('vpc')">+ Add Row</button>
+                                    <button class="csv-editor-btn" onclick="exportCsv('vpc')">Export CSV</button>
+                                </div>
+                            </div>
+                            <table class="csv-editor-table" id="vpcCsvTable">
+                                <thead>
+                                    <tr>
+                                        <th>Hostname</th>
+                                        <th>Switch1</th>
+                                        <th>Switch2</th>
+                                        <th>Speed</th>
+                                        <th>VLANS</th>
+                                        <th>WorkOrder</th>
+                                        <th class="row-actions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="text" placeholder="MEDHVIOP173_SEA_PROD"></td>
+                                        <td><input type="text" placeholder="EDCLEAFACC1501"></td>
+                                        <td><input type="text" placeholder="EDCLEAFACC1502"></td>
+                                        <td><input type="text" placeholder="25G"></td>
+                                        <td><input type="text" placeholder="32,64-67"></td>
+                                        <td><input type="text" placeholder="WO123456"></td>
+                                        <td class="row-actions"><button class="delete-row" onclick="deleteCsvRow(this)">✕</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -994,10 +1193,49 @@ HTML_TEMPLATE = '''
                 </div>
 
                 <div class="config-panel">
-                    <div class="config-row">
+                    <div class="csv-toggle-group">
+                        <button class="csv-toggle active" onclick="toggleCsvMode('individual', 'file')">📁 Use CSV File</button>
+                        <button class="csv-toggle" onclick="toggleCsvMode('individual', 'inline')">✏️ Edit Inline</button>
+                    </div>
+                    <div id="individualFileMode" class="config-row">
                         <div class="config-group">
                             <label class="config-label">CSV File Path</label>
                             <input type="text" class="config-input" id="individualCsvPath" value="{{ config.default_individual_csv }}">
+                        </div>
+                    </div>
+                    <div id="individualInlineMode" style="display: none;">
+                        <div class="csv-editor-section" style="padding: 0;">
+                            <div class="csv-editor-header">
+                                <span class="csv-editor-title">Inline CSV Editor</span>
+                                <div class="csv-editor-actions">
+                                    <button class="csv-editor-btn add" onclick="addCsvRow('individual')">+ Add Row</button>
+                                    <button class="csv-editor-btn" onclick="exportCsv('individual')">Export CSV</button>
+                                </div>
+                            </div>
+                            <table class="csv-editor-table" id="individualCsvTable">
+                                <thead>
+                                    <tr>
+                                        <th>Hostname</th>
+                                        <th>Switch</th>
+                                        <th>Type</th>
+                                        <th>Speed</th>
+                                        <th>VLANS</th>
+                                        <th>WorkOrder</th>
+                                        <th class="row-actions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="text" placeholder="MEDHVIOP173_MGMT"></td>
+                                        <td><input type="text" placeholder="EDCLEAFNSM2163"></td>
+                                        <td><input type="text" placeholder="ACCESS"></td>
+                                        <td><input type="text" placeholder="1G"></td>
+                                        <td><input type="text" placeholder="2958"></td>
+                                        <td><input type="text" placeholder="WO123456"></td>
+                                        <td class="row-actions"><button class="delete-row" onclick="deleteCsvRow(this)">✕</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1062,17 +1300,15 @@ HTML_TEMPLATE = '''
                             <input type="text" class="settings-input" id="settingsIndividualScript" value="{{ config.individual_script }}">
                             <div class="settings-hint">Path to the individual port bulk deployment Python script</div>
                         </div>
-                    </div>
-
-                    <div class="settings-section">
-                        <div class="settings-section-title">📄 Default CSV Files</div>
                         <div class="settings-row">
-                            <label class="settings-label">Default VPC CSV</label>
-                            <input type="text" class="settings-input" id="settingsVpcCsv" value="{{ config.default_vpc_csv }}">
+                            <label class="settings-label">EPG Add Script</label>
+                            <input type="text" class="settings-input" id="settingsEpgaddScript" value="{{ config.epgadd_script }}">
+                            <div class="settings-hint">Path to the EPG add Python script</div>
                         </div>
                         <div class="settings-row">
-                            <label class="settings-label">Default Individual Port CSV</label>
-                            <input type="text" class="settings-input" id="settingsIndividualCsv" value="{{ config.default_individual_csv }}">
+                            <label class="settings-label">EPG Delete Script</label>
+                            <input type="text" class="settings-input" id="settingsEpgdeleteScript" value="{{ config.epgdelete_script }}">
+                            <div class="settings-hint">Path to the EPG delete Python script</div>
                         </div>
                     </div>
 
@@ -1112,6 +1348,26 @@ HTML_TEMPLATE = '''
                                 </table>
                             </div>
                         </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px;">
+                            <div>
+                                <div style="font-weight: 600; color: #38ef7d; margin-bottom: 8px;">EPG Add CSV:</div>
+                                <table class="csv-table" style="font-size: 11px;">
+                                    <tr><th>Column</th><th>Description</th></tr>
+                                    <tr><td>Switch</td><td>Target switch</td></tr>
+                                    <tr><td>Port</td><td>Port number (e.g., 1/68)</td></tr>
+                                    <tr><td>VLANS</td><td>VLAN IDs to add</td></tr>
+                                </table>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: #f45c43; margin-bottom: 8px;">EPG Delete CSV:</div>
+                                <table class="csv-table" style="font-size: 11px;">
+                                    <tr><th>Column</th><th>Description</th></tr>
+                                    <tr><td>Switch</td><td>Target switch</td></tr>
+                                    <tr><td>Port</td><td>Port number (e.g., 1/68)</td></tr>
+                                    <tr><td>VLANS</td><td>VLAN IDs to remove</td></tr>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1128,9 +1384,11 @@ HTML_TEMPLATE = '''
                 <div class="readme-panel">
                     <div class="readme-tabs">
                         <div class="readme-tab active" onclick="switchReadmeTab('ui')">🖥️ Using the UI</div>
-                        <div class="readme-tab" onclick="switchReadmeTab('vpc')">⚡ VPC Deployment</div>
-                        <div class="readme-tab" onclick="switchReadmeTab('individual')">🔌 Individual Port</div>
-                        <div class="readme-tab" onclick="switchReadmeTab('troubleshoot')">🔧 Troubleshooting</div>
+                        <div class="readme-tab" onclick="switchReadmeTab('vpc')">⚡ VPC</div>
+                        <div class="readme-tab" onclick="switchReadmeTab('individual')">🔌 Port</div>
+                        <div class="readme-tab" onclick="switchReadmeTab('epgadd')">➕ EPG Add</div>
+                        <div class="readme-tab" onclick="switchReadmeTab('epgdelete')">➖ EPG Delete</div>
+                        <div class="readme-tab" onclick="switchReadmeTab('troubleshoot')">🔧 Troubleshoot</div>
                     </div>
 
                     <!-- UI Tab -->
@@ -1275,6 +1533,112 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
                         </div>
                     </div>
 
+                    <!-- EPG Add Tab -->
+                    <div id="readmeTabEpgadd" class="readme-tab-content">
+                        <div class="readme-section">
+                            <div class="readme-section-title"><span>➕</span> EPG Add - Add EPGs to Existing Ports</div>
+                            <div class="readme-content">
+                                <p>Add EPG static bindings to ports that already have policy groups configured.</p>
+                                
+                                <h3>CSV Format</h3>
+                                <table class="csv-table">
+                                    <tr><th>Column</th><th>Description</th><th>Example</th></tr>
+                                    <tr><td>Switch</td><td>Target switch name</td><td><code>EDCLEAFACC1501</code></td></tr>
+                                    <tr><td>Port</td><td>Port number</td><td><code>1/68</code></td></tr>
+                                    <tr><td>VLANS</td><td>VLAN IDs to add</td><td><code>32,64-67</code></td></tr>
+                                </table>
+
+                                <h3>Example CSV</h3>
+                                <div class="csv-example">
+Switch,Port,VLANS
+EDCLEAFACC1501,1/68,"32,64-67"
+EDCLEAFNSM2163,1/5,2958
+                                </div>
+
+                                <h3>Features</h3>
+                                <ul>
+                                    <li><strong>Dry-Run Mode</strong> - Validate without deploying</li>
+                                    <li><strong>Multi-AP Detection</strong> - Alerts when VLAN exists in multiple Application Profiles</li>
+                                    <li><strong>Batch Preview</strong> - Shows ALL bindings before deployment</li>
+                                    <li><strong>Skip Existing</strong> - Automatically skips already-bound EPGs</li>
+                                    <li><strong>Binding Mode</strong> - Choose Trunk (tagged) or Access (untagged)</li>
+                                </ul>
+
+                                <h3>Multi-Application Profile Handling</h3>
+                                <p>If a VLAN exists in multiple Application Profiles, you'll be prompted:</p>
+                                <div class="csv-example">
+[ALERT] VLAN 32 exists in multiple Application Profiles:
+--------------------------------------------------
+  [1] APP_PROFILE_1 -> V0032_EPG
+  [2] APP_PROFILE_2 -> V0032_BACKUP
+--------------------------------------------------
+Select Application Profile for VLAN 32: _
+                                </div>
+
+                                <h3>What Gets Created</h3>
+                                <ul>
+                                    <li><strong>Static Path Binding</strong> on the EPG</li>
+                                    <li><strong>VLAN Encapsulation</strong> - vlan-{ID}</li>
+                                    <li><strong>Deployment Immediacy</strong> - Immediate</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EPG Delete Tab -->
+                    <div id="readmeTabEpgdelete" class="readme-tab-content">
+                        <div class="readme-section">
+                            <div class="readme-section-title"><span>➖</span> EPG Delete - Remove EPGs from Ports</div>
+                            <div class="readme-content">
+                                <p>Remove EPG static bindings from existing ports.</p>
+                                
+                                <h3>CSV Format</h3>
+                                <table class="csv-table">
+                                    <tr><th>Column</th><th>Description</th><th>Example</th></tr>
+                                    <tr><td>Switch</td><td>Target switch name</td><td><code>EDCLEAFACC1501</code></td></tr>
+                                    <tr><td>Port</td><td>Port number</td><td><code>1/68</code></td></tr>
+                                    <tr><td>VLANS</td><td>VLAN IDs to remove</td><td><code>32,64-67</code></td></tr>
+                                </table>
+
+                                <h3>Example CSV</h3>
+                                <div class="csv-example">
+Switch,Port,VLANS
+EDCLEAFACC1501,1/68,"32,64-67"
+EDCLEAFNSM2163,1/5,2958
+                                </div>
+
+                                <h3>Features</h3>
+                                <ul>
+                                    <li><strong>Dry-Run Mode</strong> - Validate without deleting</li>
+                                    <li><strong>Multi-AP Handling</strong> - Check specific AP or ALL profiles</li>
+                                    <li><strong>Batch Preview</strong> - Shows ALL bindings to delete</li>
+                                    <li><strong>Safety Confirmation</strong> - Must type 'YES' to confirm deletion</li>
+                                </ul>
+
+                                <h3>Multi-Application Profile Handling</h3>
+                                <p>When a VLAN exists in multiple Application Profiles:</p>
+                                <div class="csv-example">
+[ALERT] VLAN 32 exists in multiple Application Profiles:
+----------------------------------------
+  [1] APP_PROFILE_1 -> V0032_EPG
+  [2] APP_PROFILE_2 -> V0032_BACKUP
+  [A] Check ALL Application Profiles
+----------------------------------------
+Select for VLAN 32: _
+                                </div>
+
+                                <h3>Confirmation Required</h3>
+                                <p>Deletion requires explicit confirmation:</p>
+                                <div class="csv-example">
+[WARNING] About to delete 5 EPG binding(s)
+         This action cannot be undone!
+
+Confirm deletion (type 'YES' to confirm): _
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Troubleshooting Tab -->
                     <div id="readmeTabTroubleshoot" class="readme-tab-content">
                         <div class="readme-section">
@@ -1321,6 +1685,184 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
                     </div>
                 </div>
             </div>
+
+            <!-- EPG Add Screen -->
+            <div id="epgaddScreen" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="header-bar">
+                    <div class="header-title">
+                        <h2>EPG Add - Add EPGs to Existing Ports</h2>
+                        <span class="header-badge epgadd">ADD</span>
+                    </div>
+                    <div class="header-actions">
+                        <button class="header-btn" onclick="clearTerminal('epgadd')">Clear</button>
+                        <button class="header-btn danger" onclick="stopScript()" id="epgaddStopBtn" disabled>Stop</button>
+                        <button class="header-btn primary" onclick="runScript('epgadd')" id="epgaddRunBtn">Run Script</button>
+                    </div>
+                </div>
+
+                <div class="config-panel">
+                    <div class="csv-toggle-group">
+                        <button class="csv-toggle active" onclick="toggleCsvMode('epgadd', 'file')">📁 Use CSV File</button>
+                        <button class="csv-toggle" onclick="toggleCsvMode('epgadd', 'inline')">✏️ Edit Inline</button>
+                    </div>
+                    <div id="epgaddFileMode" class="config-row">
+                        <div class="config-group">
+                            <label class="config-label">CSV File Path</label>
+                            <input type="text" class="config-input" id="epgaddCsvPath" value="epg_add.csv">
+                        </div>
+                    </div>
+                    <div id="epgaddInlineMode" style="display: none;">
+                        <div class="csv-editor-section" style="padding: 0;">
+                            <div class="csv-editor-header">
+                                <span class="csv-editor-title">Inline CSV Editor</span>
+                                <div class="csv-editor-actions">
+                                    <button class="csv-editor-btn add" onclick="addCsvRow('epgadd')">+ Add Row</button>
+                                    <button class="csv-editor-btn" onclick="exportCsv('epgadd')">Export CSV</button>
+                                </div>
+                            </div>
+                            <table class="csv-editor-table" id="epgaddCsvTable">
+                                <thead>
+                                    <tr>
+                                        <th>Switch</th>
+                                        <th>Port</th>
+                                        <th>VLANS</th>
+                                        <th class="row-actions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="text" placeholder="EDCLEAFACC1501"></td>
+                                        <td><input type="text" placeholder="1/68"></td>
+                                        <td><input type="text" placeholder="32,64-67"></td>
+                                        <td class="row-actions"><button class="delete-row" onclick="deleteCsvRow(this)">✕</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="csv-reference" id="epgaddCsvRef">
+                    <div class="csv-reference-header">
+                        <span class="csv-reference-title">📋 CSV Format Reference</span>
+                        <span class="csv-reference-toggle" onclick="toggleCsvRef('epgadd')">Hide</span>
+                    </div>
+                    <table class="csv-table">
+                        <tr><th>Switch</th><th>Port</th><th>VLANS</th></tr>
+                        <tr><td>Switch name</td><td>Port (e.g., 1/68)</td><td>VLAN IDs</td></tr>
+                    </table>
+                    <div class="csv-example">
+                        <div class="csv-example-label"># Example:</div>
+                        EDCLEAFACC1501,1/68,"32,64-67"
+                    </div>
+                </div>
+
+                <div class="terminal-container">
+                    <div class="terminal-header">
+                        <div class="terminal-dots"><div class="terminal-dot red"></div><div class="terminal-dot yellow"></div><div class="terminal-dot green"></div></div>
+                        <span class="terminal-title">epg-add-console</span>
+                        <div class="terminal-status" id="epgaddTerminalStatus"><div class="terminal-status-dot"></div><span>Ready</span></div>
+                    </div>
+                    <div class="terminal-output" id="epgaddOutput">
+                        <div class="terminal-line muted">// EPG Add Console</div>
+                        <div class="terminal-line muted">// Add EPG bindings to existing ports</div>
+                    </div>
+                    <div class="terminal-input-area">
+                        <span class="terminal-prompt">❯</span>
+                        <input type="text" class="terminal-input" id="epgaddInput" placeholder="Type response here..." onkeypress="handleInputKeypress(event, 'epgadd')" disabled>
+                        <button class="terminal-submit" id="epgaddSubmitBtn" onclick="submitInput('epgadd')" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EPG Delete Screen -->
+            <div id="epgdeleteScreen" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="header-bar">
+                    <div class="header-title">
+                        <h2>EPG Delete - Remove EPGs from Ports</h2>
+                        <span class="header-badge epgdelete">DELETE</span>
+                    </div>
+                    <div class="header-actions">
+                        <button class="header-btn" onclick="clearTerminal('epgdelete')">Clear</button>
+                        <button class="header-btn danger" onclick="stopScript()" id="epgdeleteStopBtn" disabled>Stop</button>
+                        <button class="header-btn primary" onclick="runScript('epgdelete')" id="epgdeleteRunBtn">Run Script</button>
+                    </div>
+                </div>
+
+                <div class="config-panel">
+                    <div class="csv-toggle-group">
+                        <button class="csv-toggle active" onclick="toggleCsvMode('epgdelete', 'file')">📁 Use CSV File</button>
+                        <button class="csv-toggle" onclick="toggleCsvMode('epgdelete', 'inline')">✏️ Edit Inline</button>
+                    </div>
+                    <div id="epgdeleteFileMode" class="config-row">
+                        <div class="config-group">
+                            <label class="config-label">CSV File Path</label>
+                            <input type="text" class="config-input" id="epgdeleteCsvPath" value="epg_delete.csv">
+                        </div>
+                    </div>
+                    <div id="epgdeleteInlineMode" style="display: none;">
+                        <div class="csv-editor-section" style="padding: 0;">
+                            <div class="csv-editor-header">
+                                <span class="csv-editor-title">Inline CSV Editor</span>
+                                <div class="csv-editor-actions">
+                                    <button class="csv-editor-btn add" onclick="addCsvRow('epgdelete')">+ Add Row</button>
+                                    <button class="csv-editor-btn" onclick="exportCsv('epgdelete')">Export CSV</button>
+                                </div>
+                            </div>
+                            <table class="csv-editor-table" id="epgdeleteCsvTable">
+                                <thead>
+                                    <tr>
+                                        <th>Switch</th>
+                                        <th>Port</th>
+                                        <th>VLANS</th>
+                                        <th class="row-actions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="text" placeholder="EDCLEAFACC1501"></td>
+                                        <td><input type="text" placeholder="1/68"></td>
+                                        <td><input type="text" placeholder="32,64-67"></td>
+                                        <td class="row-actions"><button class="delete-row" onclick="deleteCsvRow(this)">✕</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="csv-reference" id="epgdeleteCsvRef">
+                    <div class="csv-reference-header">
+                        <span class="csv-reference-title">📋 CSV Format Reference</span>
+                        <span class="csv-reference-toggle" onclick="toggleCsvRef('epgdelete')">Hide</span>
+                    </div>
+                    <table class="csv-table">
+                        <tr><th>Switch</th><th>Port</th><th>VLANS</th></tr>
+                        <tr><td>Switch name</td><td>Port (e.g., 1/68)</td><td>VLAN IDs to remove</td></tr>
+                    </table>
+                    <div class="csv-example">
+                        <div class="csv-example-label"># Example:</div>
+                        EDCLEAFACC1501,1/68,"32,64-67"
+                    </div>
+                </div>
+
+                <div class="terminal-container">
+                    <div class="terminal-header">
+                        <div class="terminal-dots"><div class="terminal-dot red"></div><div class="terminal-dot yellow"></div><div class="terminal-dot green"></div></div>
+                        <span class="terminal-title">epg-delete-console</span>
+                        <div class="terminal-status" id="epgdeleteTerminalStatus"><div class="terminal-status-dot"></div><span>Ready</span></div>
+                    </div>
+                    <div class="terminal-output" id="epgdeleteOutput">
+                        <div class="terminal-line muted">// EPG Delete Console</div>
+                        <div class="terminal-line muted">// Remove EPG bindings from ports</div>
+                    </div>
+                    <div class="terminal-input-area">
+                        <span class="terminal-prompt">❯</span>
+                        <input type="text" class="terminal-input" id="epgdeleteInput" placeholder="Type response here..." onkeypress="handleInputKeypress(event, 'epgdelete')" disabled>
+                        <button class="terminal-submit" id="epgdeleteSubmitBtn" onclick="submitInput('epgdelete')" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -1328,6 +1870,7 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
         let currentView = 'welcome';
         let isRunning = false;
         let pollInterval = null;
+        let csvModes = { vpc: 'file', individual: 'file', epgadd: 'file', epgdelete: 'file' };
 
         function selectView(view) {
             currentView = view;
@@ -1340,6 +1883,8 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
             document.getElementById('individualScreen').classList.add('hidden');
             document.getElementById('settingsScreen').classList.add('hidden');
             document.getElementById('readmeScreen').classList.add('hidden');
+            document.getElementById('epgaddScreen').classList.add('hidden');
+            document.getElementById('epgdeleteScreen').classList.add('hidden');
 
             const screen = document.getElementById(view + 'Screen');
             if (screen) {
@@ -1348,6 +1893,93 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
             } else if (view === 'welcome') {
                 document.getElementById('welcomeScreen').classList.remove('hidden');
             }
+        }
+
+        // CSV Editor Functions
+        function toggleCsvMode(type, mode) {
+            csvModes[type] = mode;
+            const fileMode = document.getElementById(type + 'FileMode');
+            const inlineMode = document.getElementById(type + 'InlineMode');
+            const toggles = document.querySelectorAll(`#${type}Screen .csv-toggle`);
+            
+            toggles.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (mode === 'file') {
+                fileMode.style.display = 'flex';
+                inlineMode.style.display = 'none';
+            } else {
+                fileMode.style.display = 'none';
+                inlineMode.style.display = 'block';
+            }
+        }
+
+        function addCsvRow(type) {
+            const table = document.getElementById(type + 'CsvTable').getElementsByTagName('tbody')[0];
+            const newRow = table.insertRow();
+            
+            const columns = type.startsWith('epg') ? 3 : (type === 'vpc' ? 6 : 6);
+            const placeholders = {
+                'epgadd': ['EDCLEAFACC1501', '1/68', '32,64-67'],
+                'epgdelete': ['EDCLEAFACC1501', '1/68', '32,64-67'],
+                'vpc': ['HOSTNAME', 'EDCLEAFACC1501', 'EDCLEAFACC1502', '25G', '32,64-67', 'WO123456'],
+                'individual': ['HOSTNAME', 'EDCLEAFNSM2163', 'ACCESS', '1G', '2958', 'WO123456']
+            };
+            
+            for (let i = 0; i < columns; i++) {
+                const cell = newRow.insertCell();
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = placeholders[type][i] || '';
+                cell.appendChild(input);
+            }
+            
+            const actionsCell = newRow.insertCell();
+            actionsCell.className = 'row-actions';
+            actionsCell.innerHTML = '<button class="delete-row" onclick="deleteCsvRow(this)">✕</button>';
+        }
+
+        function deleteCsvRow(btn) {
+            const row = btn.closest('tr');
+            const tbody = row.parentNode;
+            if (tbody.rows.length > 1) {
+                row.remove();
+            }
+        }
+
+        function getInlineCsvData(type) {
+            const table = document.getElementById(type + 'CsvTable');
+            const rows = table.getElementsByTagName('tbody')[0].rows;
+            const headers = Array.from(table.getElementsByTagName('th')).map(th => th.textContent).filter(h => h);
+            
+            let csvContent = headers.join(',') + '\\n';
+            
+            for (let row of rows) {
+                const cells = row.getElementsByTagName('input');
+                const values = Array.from(cells).map(input => {
+                    let val = input.value.trim();
+                    if (val.includes(',') || val.includes('-')) {
+                        val = '"' + val + '"';
+                    }
+                    return val;
+                });
+                if (values.some(v => v)) {
+                    csvContent += values.join(',') + '\\n';
+                }
+            }
+            
+            return csvContent;
+        }
+
+        function exportCsv(type) {
+            const csvContent = getInlineCsvData(type);
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = type + '_export.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
         }
 
         function switchReadmeTab(tab) {
@@ -1359,6 +1991,8 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
                 'ui': 'readmeTabUi',
                 'vpc': 'readmeTabVpc',
                 'individual': 'readmeTabIndividual',
+                'epgadd': 'readmeTabEpgadd',
+                'epgdelete': 'readmeTabEpgdelete',
                 'troubleshoot': 'readmeTabTroubleshoot'
             };
             document.getElementById(tabMap[tab]).classList.add('active');
@@ -1489,8 +2123,8 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
             const settings = {
                 vpc_script: document.getElementById('settingsVpcScript').value,
                 individual_script: document.getElementById('settingsIndividualScript').value,
-                default_vpc_csv: document.getElementById('settingsVpcCsv').value,
-                default_individual_csv: document.getElementById('settingsIndividualCsv').value,
+                epgadd_script: document.getElementById('settingsEpgaddScript').value,
+                epgdelete_script: document.getElementById('settingsEpgdeleteScript').value,
                 version: document.getElementById('settingsVersion').value
             };
             fetch('/api/settings', {
@@ -1503,8 +2137,6 @@ MEDHVIOP173_Clients,EDCLEAFNSM2163,TRUNK,25G,"2704-2719",WO123456
                 if (data.status === 'saved') {
                     alert('Settings saved!');
                     document.getElementById('versionBadge').textContent = 'v' + settings.version;
-                    document.getElementById('vpcCsvPath').value = settings.default_vpc_csv;
-                    document.getElementById('individualCsvPath').value = settings.default_individual_csv;
                 }
             });
         }
@@ -1531,7 +2163,21 @@ def api_run():
     
     data = request.json
     config = load_config()
-    script_path = config['vpc_script'] if data.get('type') == 'vpc' else config['individual_script']
+    script_type = data.get('type')
+    
+    # Map script type to config key
+    script_map = {
+        'vpc': 'vpc_script',
+        'individual': 'individual_script',
+        'epgadd': 'epgadd_script',
+        'epgdelete': 'epgdelete_script'
+    }
+    
+    script_key = script_map.get(script_type)
+    if not script_key or script_key not in config:
+        return jsonify({'status': 'error', 'message': f'Unknown script type: {script_type}'})
+    
+    script_path = config[script_key]
     
     if not os.path.exists(script_path):
         return jsonify({'status': 'error', 'message': f'Script not found: {script_path}'})
